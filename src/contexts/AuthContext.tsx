@@ -1,21 +1,14 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User } from '@/types/library';
+import { User, Session } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<boolean>;
-  register: (userData: RegisterData) => Promise<boolean>;
+  session: Session | null;
+  signIn: (email: string, password: string) => Promise<{ error?: string }>;
+  signUp: (email: string, password: string) => Promise<{ error?: string }>;
   logout: () => void;
   isLoading: boolean;
-}
-
-interface RegisterData {
-  name: string;
-  email: string;
-  password: string;
-  role: 'student' | 'handler';
-  studentId?: string;
-  handlerId?: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,97 +23,75 @@ export const useAuth = () => {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check for existing session
-    const savedUser = localStorage.getItem('library-user');
-    if (savedUser) {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch (error) {
-        console.error('Error parsing saved user:', error);
-        localStorage.removeItem('library-user');
-      }
-    }
-    setIsLoading(false);
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setIsLoading(false);
+    });
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setIsLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const signIn = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Get users from localStorage
-      const users = JSON.parse(localStorage.getItem('library-users') || '[]');
-      const foundUser = users.find((u: User & { password: string }) => 
-        u.email === email && u.password === password
-      );
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-      if (foundUser) {
-        const { password: _, ...userWithoutPassword } = foundUser;
-        setUser(userWithoutPassword);
-        localStorage.setItem('library-user', JSON.stringify(userWithoutPassword));
-        return true;
+      if (error) {
+        return { error: error.message };
       }
-      return false;
+
+      return {};
     } catch (error) {
-      console.error('Login error:', error);
-      return false;
+      return { error: 'An unexpected error occurred' };
     } finally {
       setIsLoading(false);
     }
   };
 
-  const register = async (userData: RegisterData): Promise<boolean> => {
+  const signUp = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const users = JSON.parse(localStorage.getItem('library-users') || '[]');
-      
-      // Check if user already exists
-      if (users.some((u: User) => u.email === userData.email)) {
-        return false;
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (error) {
+        return { error: error.message };
       }
 
-      const newUser: User & { password: string } = {
-        id: Date.now().toString(),
-        name: userData.name,
-        email: userData.email,
-        password: userData.password,
-        role: userData.role,
-        studentId: userData.studentId,
-        handlerId: userData.handlerId,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-      };
-
-      users.push(newUser);
-      localStorage.setItem('library-users', JSON.stringify(users));
-      
-      const { password: _, ...userWithoutPassword } = newUser;
-      setUser(userWithoutPassword);
-      localStorage.setItem('library-user', JSON.stringify(userWithoutPassword));
-      
-      return true;
+      return {};
     } catch (error) {
-      console.error('Registration error:', error);
-      return false;
+      return { error: 'An unexpected error occurred' };
     } finally {
       setIsLoading(false);
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('library-user');
+  const logout = async () => {
+    await supabase.auth.signOut();
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, session, signIn, signUp, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
