@@ -15,18 +15,10 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { 
-  Search, 
   BookOpen, 
-  Grid3X3, 
-  Library, 
-  Download, 
-  Headphones, 
-  Heart, 
+  PlusCircle,
   Settings, 
   LogOut,
-  Zap,
-  TrendingUp,
-  Target
 } from "lucide-react";
 
 interface AppSidebarProps {
@@ -39,15 +31,8 @@ export const AppSidebar = ({ activeItem, onItemClick }: AppSidebarProps) => {
   const { state } = useSidebar();
 
   const menuItems = [
-    { id: "discover", label: "Discover", icon: Search, badge: null },
-    { id: "recommended", label: "AI Recommendations", icon: Zap, badge: "12" },
-    { id: "trending", label: "Trending", icon: TrendingUp, badge: null },
-    { id: "categories", label: "Categories", icon: Grid3X3, badge: null },
-    { id: "library", label: "My Library", icon: Library, badge: "24" },
-    { id: "goals", label: "Reading Goals", icon: Target, badge: null },
-    { id: "downloads", label: "Downloads", icon: Download, badge: "3" },
-    { id: "audiobooks", label: "Audio Books", icon: Headphones, badge: null },
-    { id: "favorites", label: "Favorites", icon: Heart, badge: "8" },
+    { id: "my-books", label: "My Books", icon: BookOpen, badge: null },
+    { id: "add-book", label: "Add Book", icon: PlusCircle, badge: null },
   ];
 
   const bottomItems = [
@@ -65,14 +50,14 @@ export const AppSidebar = ({ activeItem, onItemClick }: AppSidebarProps) => {
           {state === "expanded" && (
             <div>
               <h1 className="text-xl font-bold gradient-text">BookBase</h1>
-              <p className="text-xs text-sidebar-foreground/60">Pro</p>
+              <p className="text-xs text-sidebar-foreground/60">Personal Library</p>
             </div>
           )}
         </div>
       </SidebarHeader>
 
       <SidebarContent>
-        {/* Reading Streak */}
+        {/* Reading Stats */}
         {state === "expanded" && (
           <div className="p-4">
             <div className="glass-card p-4 rounded-xl">

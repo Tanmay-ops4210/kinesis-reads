@@ -1,67 +1,140 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { 
   SidebarProvider,
   SidebarTrigger,
   SidebarInset,
 } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/AppSidebar";
-import { EnhancedSearch } from "@/components/search/EnhancedSearch";
-import { AIRecommendationFeed } from "@/components/recommendations/AIRecommendationFeed";
-import { ContextualActionPanel } from "@/components/panels/ContextualActionPanel";
+import { BookList } from "@/components/books/BookList";
+import { BookForm } from "@/components/books/BookForm";
 import { DarkModeToggle } from "@/components/layout/DarkModeToggle";
+import { useBooks, Book } from "@/hooks/useBooks";
+import { toast } from "@/components/ui/sonner";
 import { 
   Bell, 
   User, 
   ChevronDown,
-  Sparkles,
-  TrendingUp,
-  Award
+  BookOpen,
+  Loader2
 } from "lucide-react";
 
 export const BookBasePro = () => {
-  const [activeView, setActiveView] = useState("recommended");
-  const [selectedBook, setSelectedBook] = useState(null);
+  const [activeView, setActiveView] = useState("my-books");
+  const [editingBook, setEditingBook] = useState<Book | null>(null);
+  const { books, loading, addBook, updateBook, deleteBook } = useBooks();
 
-  const userStats = {
-    booksRead: 24,
-    readingStreak: 7,
-    knowledgeScore: 87
+  const handleSaveBook = async (bookData: Omit<Book, 'id' | 'createdAt'>) => {
+    try {
+      if (editingBook) {
+        await updateBook(editingBook.id, bookData);
+        toast.success("Book updated successfully!");
+      } else {
+        await addBook(bookData);
+        toast.success("Book added successfully!");
+      }
+    } catch (error) {
+      toast.error("Failed to save book. Please try again.");
+      throw error;
+    }
+  };
+
+  const handleEditBook = (book: Book) => {
+    setEditingBook(book);
+    setActiveView("add-book");
+  };
+
+  const handleDeleteBook = async (bookId: string) => {
+    if (window.confirm("Are you sure you want to delete this book?")) {
+      try {
+        await deleteBook(bookId);
+        toast.success("Book deleted successfully!");
+      } catch (error) {
+        toast.error("Failed to delete book. Please try again.");
+      }
+    }
+  };
+
+  const handleCancelForm = () => {
+    setEditingBook(null);
+    setActiveView("my-books");
+  };
+
+  const handleViewChange = (view: string) => {
+    if (view !== activeView) {
+      setEditingBook(null);
+    }
+    setActiveView(view);
+  };
+
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center py-16">
+          <div className="flex items-center gap-3">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            <span className="text-muted-foreground">Loading your books...</span>
+          </div>
+        </div>
+      );
+    }
+
+    switch (activeView) {
+      case "my-books":
+        return (
+          <BookList 
+            books={books}
+            onEdit={handleEditBook}
+            onDelete={handleDeleteBook}
+          />
+        );
+      case "add-book":
+        return (
+          <BookForm
+            book={editingBook}
+            onSave={handleSaveBook}
+            onCancel={handleCancelForm}
+            isEditing={!!editingBook}
+          />
+        );
+      default:
+        return (
+          <BookList 
+            books={books}
+            onEdit={handleEditBook}
+            onDelete={handleDeleteBook}
+          />
+        );
+    }
   };
 
   return (
     <SidebarProvider>
       <div className="min-h-screen w-full flex">
-        <AppSidebar activeItem={activeView} onItemClick={setActiveView} />
+        <AppSidebar activeItem={activeView} onItemClick={handleViewChange} />
         
         <SidebarInset className="flex-1">
           {/* Top Header */}
           <header className="h-16 border-b border-border bg-card/50 backdrop-blur-sm flex items-center justify-between px-4 lg:px-6">
-            {/* Mobile Menu + Search */}
-            <div className="flex items-center gap-2 flex-1 max-w-2xl">
+            {/* Mobile Menu + Title */}
+            <div className="flex items-center gap-4">
               <SidebarTrigger className="md:hidden" />
-              <div className="flex-1">
-                <EnhancedSearch />
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <BookOpen className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <h1 className="text-lg font-semibold">BookBase</h1>
+                  <p className="text-xs text-muted-foreground">Personal Library</p>
+                </div>
               </div>
             </div>
 
             {/* User Area */}
             <div className="flex items-center gap-2 lg:gap-4">
-              {/* User Stats */}
-              <div className="hidden lg:flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <Award className="w-4 h-4 text-secondary" />
-                  <span className="text-sm font-medium">{userStats.knowledgeScore}</span>
-                  <span className="text-xs text-muted-foreground">Knowledge Score</span>
-                </div>
-                <div className="w-px h-6 bg-border"></div>
-              </div>
-
               {/* Notifications */}
-              <Button variant="ghost" size="sm" className="relative">
+              <Button variant="ghost" size="sm" className="relative hidden sm:flex">
                 <Bell className="w-5 h-5" />
-                <Badge className="absolute -top-1 -right-1 w-2 h-2 p-0 bg-destructive"></Badge>
               </Button>
 
               {/* Dark Mode Toggle */}
@@ -79,38 +152,15 @@ export const BookBasePro = () => {
           </header>
 
           {/* Content Area */}
-          <div className="flex-1 flex">
-            {/* Main Content */}
-            <main className="flex-1 p-4 lg:p-6 overflow-y-auto">
-              {/* Page Header */}
-              <div className="mb-8">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <Sparkles className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <h1 className="text-2xl lg:text-3xl font-bold gradient-text">Discover Your Next Read</h1>
-                    <p className="text-muted-foreground">AI-powered recommendations tailored just for you</p>
-                  </div>
-                </div>
+          <main className="flex-1 p-4 lg:p-6 overflow-y-auto">
+            {renderContent()}
+          </main>
+        </SidebarInset>
+      </div>
+    </SidebarProvider>
+  );
+};
 
-                {/* Quick Stats */}
-                <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 mt-6">
-                  <div className="flex items-center gap-2 text-sm">
-                    <div className="w-2 h-2 rounded-full bg-success"></div>
-                    <span className="font-medium">{userStats.booksRead}</span>
-                    <span className="text-muted-foreground">books completed this year</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <TrendingUp className="w-4 h-4 text-secondary" />
-                    <span className="font-medium">{userStats.readingStreak}</span>
-                    <span className="text-muted-foreground">day reading streak</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* AI Recommendation Feed */}
-              <AIRecommendationFeed />
             </main>
 
             {/* Right Panel - Hidden on mobile, shown on larger screens */}
